@@ -50,7 +50,7 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 
     return response.json()
   } catch (err) {
-    console.log("[v0] Using mock data - PHP backend not available yet. Set up the backend per SETUP.md to use real data.")
+    console.log("Using mock data - PHP backend not available yet. Set up the backend per SETUP.md to use real data.")
     let body: any = undefined
     if (options.body) {
       try {

@@ -42,7 +42,7 @@ export function Dashboard({ currentUser }: DashboardProps) {
           setError("Failed to load dashboard data")
         }
       } catch (err) {
-        console.log("[v0] Dashboard using mock data - backend not available")
+        console.log("Dashboard using mock data - backend not available")
         // Fall through to show mock data
         setError("Backend not configured")
       } finally {
