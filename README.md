@@ -71,28 +71,150 @@ See [`backend/README.md`](backend/README.md) for:
 
 ⭐ = Files created for this project
 
-## 🔧 Development
+## 🔧 Installation & Setup
 
 ### Prerequisites
-- Node.js 18+
-- PHP 7.4+
-- MySQL 5.7+
-- pnpm or npm
+- **Node.js 18+** - https://nodejs.org/
+- **PHP 7.4+** - https://www.php.net/downloads
+- **MySQL 5.7+** - https://dev.mysql.com/downloads/mysql/
+- **pnpm** - `npm install -g pnpm` or use `npm`/`yarn`
 
-### Run Locally
+### 1️⃣ Database Setup (MySQL)
 
-**Terminal 1 - Backend:**
+**Step 1: Create Database**
+```bash
+# Open MySQL command line
+mysql -u root -p
+
+# Create database
+CREATE DATABASE attendance_system;
+USE attendance_system;
+
+# Import schema
+SOURCE backend/db/schema.sql;
+
+# Verify
+SHOW TABLES;
+```
+
+**Step 2: Verify Sample Data**
+```sql
+-- Check if sample employees were created
+SELECT * FROM employees;
+
+-- Should show 6 employees:
+-- Alice Johnson, Bob Smith, Carol Davis, David Wilson, Emma Brown, Frank Miller
+```
+
+**Step 3: Configure Connection**
+
+The database connection is configured in `backend/config.php`:
+
+```php
+// Database credentials (modify if different)
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');           // Add your MySQL password
+define('DB_NAME', 'attendance_system');
+define('DB_PORT', 3306);
+```
+
+Or use environment variables in `backend/.env`:
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=your_password
+DB_NAME=attendance_system
+DB_PORT=3306
+API_DEBUG=false
+```
+
+### 2️⃣ PHP Backend Setup
+
+**Step 1: Install PHP Extensions** (if needed)
+```bash
+# Ubuntu/Debian
+sudo apt-get install php-mysql php-curl php-json
+
+# macOS (using Homebrew)
+brew install php
+```
+
+**Step 2: Start PHP Development Server**
 ```bash
 cd backend
 php -S localhost:8000
+
+# You should see:
+# [Mon Jan 15 10:00:00 2024] PHP 8.2.0 Development Server started at http://localhost:8000
 ```
 
-**Terminal 2 - Frontend:**
+**Step 3: Test Backend Connection**
 ```bash
+# In another terminal, test the API
+curl http://localhost:8000/api/employees/read
+
+# Should return JSON with employees list
+```
+
+### 3️⃣ React Frontend Setup
+
+**Step 1: Install Dependencies**
+```bash
+# From project root
+pnpm install
+
+# If you don't have pnpm, use npm instead:
+# npm install
+```
+
+**Step 2: Configure Environment**
+
+Create or verify `.env.local` file:
+```env
+# API connection (make sure backend is running on this URL)
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+```
+
+**Step 3: Start Development Server**
+```bash
+# From project root
+pnpm dev
+
+# You should see:
+# ▲ Next.js 15.5.18
+# - Local:        http://localhost:3001
+# - Environments: .env.local
+```
+
+**Step 4: Open in Browser**
+- Visit http://localhost:3001
+- You should see the Dashboard with mock employee data
+- Navigate to "Employees" to manage employee records
+
+### 4️⃣ Run Full Application
+
+**Complete Setup (all terminals):**
+
+```bash
+# Terminal 1: MySQL
+# Start MySQL server (if not already running)
+# macOS: brew services start mysql
+# Ubuntu: sudo systemctl start mysql
+
+# Terminal 2: PHP Backend
+cd backend
+php -S localhost:8000
+
+# Terminal 3: React Frontend  
+cd ../
 pnpm dev
 ```
 
-Open http://localhost:3001 in your browser.
+Now you have:
+- ✅ Database: MySQL on localhost:3306
+- ✅ Backend API: http://localhost:8000/api
+- ✅ Frontend: http://localhost:3001
 
 ## 📊 API Endpoints
 
@@ -138,18 +260,69 @@ Schema file: [`backend/db/schema.sql`](backend/db/schema.sql)
 - ✅ Error handling
 - ⚠️ Add authentication/authorization for production
 
-## 🌐 Deployment
+## 🏗️ Building for Production
 
-### Frontend (Vercel)
+### Frontend Build
+
 ```bash
+# Build Next.js application
 pnpm build
-vercel deploy
+
+# Test production build locally
+pnpm start
+
+# Visit http://localhost:3000 to verify
 ```
 
-### Backend (PHP Hosting)
-Upload backend folder and configure database.
+Build output:
+- `.next/` - Optimized production build
+- `.next/static/` - CSS, JavaScript assets
+- Size ~280KB (first load)
 
-See [`SETUP.md`](SETUP.md) for production deployment guide.
+### Frontend Deployment (Vercel)
+
+```bash
+# Install Vercel CLI
+pnpm add -g vercel
+
+# Deploy
+vercel deploy --prod
+
+# Set environment variable
+vercel env add NEXT_PUBLIC_API_URL
+# Enter backend URL: https://your-api-domain.com/api
+```
+
+### Backend Deployment (PHP Hosting)
+
+1. **Upload to Server**
+   ```bash
+   # Upload backend folder to your PHP hosting
+   # via FTP, SSH, or hosting control panel
+   scp -r backend/ user@server.com:/var/www/html/api/
+   ```
+
+2. **Configure Database**
+   ```bash
+   # Update backend/.env with production credentials
+   DB_HOST=your-db-host
+   DB_USER=prod-user
+   DB_PASS=strong-password
+   DB_NAME=attendance_prod
+   ```
+
+3. **Verify Permissions**
+   ```bash
+   chmod 644 backend/*.php
+   chmod 755 backend/api/
+   ```
+
+4. **Test API**
+   ```bash
+   curl https://your-api-domain.com/api/employees/read
+   ```
+
+See [`SETUP.md`](SETUP.md) for detailed production deployment guide.
 
 ## 📖 Documentation
 
@@ -206,22 +379,140 @@ curl http://localhost:8000/api/attendance/stats
 
 See [`SETUP.md`](SETUP.md) troubleshooting section for more help.
 
+## 📦 Dependencies & Requirements
+
+### Frontend Dependencies
+```json
+{
+  "next": "^15.5.18",
+  "react": "^19.0.0",
+  "typescript": "^5.6.0",
+  "tailwindcss": "^4.0.0",
+  "@radix-ui/react-dialog": "^1.1.0",
+  "lucide-react": "^0.371.0"
+}
+```
+
+Install with:
+```bash
+pnpm install
+```
+
+### Backend Requirements
+- PHP 7.4 or higher
+- MySQL 5.7 or higher
+- Apache with mod_rewrite OR Nginx with URL rewriting
+- php-mysql extension
+- php-curl extension (optional)
+
+Install PHP packages (Ubuntu/Debian):
+```bash
+sudo apt-get install php php-mysql php-curl apache2 libapache2-mod-php
+```
+
+### System Requirements
+- **RAM**: 2GB minimum (development), 4GB recommended (production)
+- **Disk**: 500MB for application + database
+- **Bandwidth**: Low (API-only traffic)
+
 ## 📝 Environment Variables
 
 ### Frontend (.env.local)
+Required for frontend to connect to backend:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-### Backend (backend/.env)
+On production:
 ```env
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
+```
+
+### Backend (backend/.env)
+Database connection configuration:
+```env
+# Database connection
 DB_HOST=localhost
 DB_USER=root
 DB_PASS=your_password
 DB_NAME=attendance_system
 DB_PORT=3306
-API_DEBUG=false
+
+# API settings
+API_DEBUG=false                          # Set to true for debugging
+ALLOWED_ORIGINS=http://localhost:3001  # Add production URL
 ```
+
+## 🔧 WordPress Integration (Optional)
+
+To add this attendance system to WordPress:
+
+### Step 1: Create Custom Plugin
+```bash
+# Create plugin directory
+mkdir wp-content/plugins/attendance-system
+cd wp-content/plugins/attendance-system
+
+# Create plugin file
+touch attendance-system.php
+```
+
+### Step 2: Add Plugin Header (attendance-system.php)
+```php
+<?php
+/**
+ * Plugin Name: Attendance Management System
+ * Plugin URI: https://yoursite.com
+ * Description: Employee attendance tracking system
+ * Version: 1.0.0
+ * Author: Your Name
+ * License: GPL v2 or later
+ */
+
+// Load the React build
+function enqueue_attendance_app() {
+    wp_enqueue_script(
+        'attendance-app',
+        plugins_url('/build/index.js', __FILE__),
+        array(),
+        '1.0.0',
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'enqueue_attendance_app');
+
+// Register shortcode
+function attendance_shortcode() {
+    return '<div id="root"></div>';
+}
+add_shortcode('attendance_system', 'attendance_shortcode');
+?>
+```
+
+### Step 3: Build React App for WordPress
+```bash
+# Build for production
+pnpm build
+
+# Copy to plugin folder
+cp -r .next/* wp-content/plugins/attendance-system/build/
+
+# Or use as iframe
+echo '<iframe src="https://attendance-app.com" width="100%" height="800"></iframe>';
+```
+
+### Step 4: Add to WordPress Page
+```
+[attendance_system]
+```
+
+Or use as standalone app via iframe on any WordPress page.
+
+**Note**: For WordPress integration, you may want to:
+- Add WordPress user authentication bridge
+- Use WordPress database instead of separate MySQL
+- Implement role-based access control using WordPress roles
+- Add WordPress admin settings page for configuration
 
 ## 🚀 Next Steps
 
