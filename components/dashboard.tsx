@@ -1,39 +1,25 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Clock, Users, TrendingUp, Calendar } from "lucide-react"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
-
-const attendanceData = [
-  { day: "Mon", present: 45, absent: 5 },
-  { day: "Tue", present: 48, absent: 2 },
-  { day: "Wed", present: 46, absent: 4 },
-  { day: "Thu", present: 49, absent: 1 },
-  { day: "Fri", present: 44, absent: 6 },
-]
-
-const departmentData = [
-  { name: "IT", value: 15, color: "#0088FE" },
-  { name: "HR", value: 8, color: "#00C49F" },
-  { name: "Sales", value: 12, color: "#FFBB28" },
-  { name: "Marketing", value: 10, color: "#FF8042" },
-]
-
-const recentActivity = [
-  { id: 1, name: "Alice Johnson", action: "Checked In", time: "09:15 AM", department: "IT" },
-  { id: 2, name: "Bob Smith", action: "Checked Out", time: "05:30 PM", department: "Sales" },
-  { id: 3, name: "Carol Davis", action: "Late Check In", time: "09:45 AM", department: "HR" },
-  { id: 4, name: "David Wilson", action: "Checked In", time: "08:30 AM", department: "Marketing" },
-]
+import { reportsApi, formatTime } from "@/lib/api"
+import { DashboardStats, AttendanceRecord } from "@/lib/types"
 
 interface DashboardProps {
   currentUser: any
 }
 
 export function Dashboard({ currentUser }: DashboardProps) {
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [recentActivity, setRecentActivity] = useState<AttendanceRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const currentTime = new Date().toLocaleTimeString()
   const currentDate = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -41,6 +27,47 @@ export function Dashboard({ currentUser }: DashboardProps) {
     month: "long",
     day: "numeric",
   })
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await reportsApi.getDashboardStats()
+        if (response.success) {
+          setStats(response.data)
+          setRecentActivity(response.data.recentActivity || [])
+        } else {
+          setError("Failed to load dashboard data")
+        }
+      } catch (err) {
+        console.error("[v0] Dashboard error:", err)
+        setError("Error loading dashboard statistics")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboardData()
+  }, [])
+
+  // Generate department data from stats
+  const departmentData = (stats?.departments || []).map((dept: any, index: number) => ({
+    ...dept,
+    name: dept.department,
+    value: dept.count,
+    color: ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"][index % 4],
+  }))
+
+  // Weekly data placeholder (would need API endpoint for full week data)
+  const attendanceData = [
+    { day: "Mon", present: 45, absent: 5 },
+    { day: "Tue", present: 48, absent: 2 },
+    { day: "Wed", present: 46, absent: 4 },
+    { day: "Thu", present: 49, absent: 1 },
+    { day: "Fri", present: 44, absent: 6 },
+  ]
 
   return (
     <div className="space-y-6">
@@ -55,48 +82,69 @@ export function Dashboard({ currentUser }: DashboardProps) {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">50</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 w-20 bg-gray-300 rounded" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-12 bg-gray-300 rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : error ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-700">{error}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present Today</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">47</div>
-            <p className="text-xs text-muted-foreground">94% attendance rate</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Late Arrivals</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">-2 from yesterday</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">On Leave</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">2 sick, 3 vacation</p>
-          </CardContent>
-        </Card>
-      </div>
+      ) : stats ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+              <p className="text-xs text-muted-foreground">Registered in system</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.presentToday}</div>
+              <p className="text-xs text-muted-foreground">{stats.attendancePercentage}% attendance</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Late Arrivals</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.lateToday}</div>
+              <p className="text-xs text-muted-foreground">After 9:00 AM</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Absent Today</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.absentToday}</div>
+              <p className="text-xs text-muted-foreground">Not checked in</p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         {/* Weekly Attendance Chart */}
@@ -181,31 +229,45 @@ export function Dashboard({ currentUser }: DashboardProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                    <AvatarFallback>
-                      {activity.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{activity.name}</p>
-                    <p className="text-xs text-muted-foreground">{activity.department}</p>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity yet today</p>
+            ) : (
+              recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activity.employee_id}`} />
+                      <AvatarFallback>
+                        {activity.name
+                          ?.split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{activity.name}</p>
+                      <p className="text-xs text-muted-foreground">{activity.department}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={
+                        activity.status === "late"
+                          ? "destructive"
+                          : activity.check_out
+                            ? "secondary"
+                            : "default"
+                      }
+                    >
+                      {activity.check_out ? "Check Out" : activity.status === "late" ? "Late" : "Check In"}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {formatTime(activity.check_in || activity.check_out)}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={activity.action.includes("Late") ? "destructive" : "default"}>
-                    {activity.action}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">{activity.time}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
