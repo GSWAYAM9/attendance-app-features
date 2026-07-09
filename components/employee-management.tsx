@@ -55,7 +55,7 @@ export function EmployeeManagement() {
         setError("Failed to load employees")
       }
     } catch (err) {
-      console.log("[v0] Error loading employees:", err)
+      console.log("Error loading employees:", err)
       setError("Error loading employees")
     } finally {
       setLoading(false)
@@ -87,7 +87,7 @@ export function EmployeeManagement() {
         setError("Failed to create employee")
       }
     } catch (err) {
-      console.log("[v0] Error creating employee:", err)
+      console.log("Error creating employee:", err)
       setError("Error creating employee")
     } finally {
       setIsSubmitting(false)
@@ -120,7 +120,7 @@ export function EmployeeManagement() {
         setError("Failed to update employee")
       }
     } catch (err) {
-      console.log("[v0] Error updating employee:", err)
+      console.log("Error updating employee:", err)
       setError("Error updating employee")
     } finally {
       setIsSubmitting(false)
@@ -139,7 +139,7 @@ export function EmployeeManagement() {
         setError("Failed to delete employee")
       }
     } catch (err) {
-      console.log("[v0] Error deleting employee:", err)
+      console.log("Error deleting employee:", err)
       setError("Error deleting employee")
     }
   }

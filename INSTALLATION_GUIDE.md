@@ -353,7 +353,7 @@ Now you can:
 - [ ] Open DevTools (F12)
 - [ ] Go to Console tab
 - [ ] Should NOT see any JavaScript errors
-- [ ] May see "[v0] Using mock data" message (normal)
+- [ ] May see "Using mock data" message (normal)
 
 ### 6. Check Network Requests
 - [ ] In DevTools, go to Network tab
