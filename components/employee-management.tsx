@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,70 +17,152 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Edit, Trash2, Clock, MapPin } from "lucide-react"
-
-const employees = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john.doe@company.com",
-    department: "IT",
-    role: "Senior Developer",
-    status: "Active",
-    isCheckedIn: true,
-    lastSeen: "2 minutes ago",
-    location: "Office - Floor 3",
-  },
-  {
-    id: "2",
-    name: "Alice Johnson",
-    email: "alice.johnson@company.com",
-    department: "HR",
-    role: "HR Manager",
-    status: "Active",
-    isCheckedIn: true,
-    lastSeen: "15 minutes ago",
-    location: "Office - Floor 2",
-  },
-  {
-    id: "3",
-    name: "Bob Smith",
-    email: "bob.smith@company.com",
-    department: "Sales",
-    role: "Sales Representative",
-    status: "Active",
-    isCheckedIn: false,
-    lastSeen: "1 hour ago",
-    location: "Remote",
-  },
-  {
-    id: "4",
-    name: "Carol Davis",
-    email: "carol.davis@company.com",
-    department: "Marketing",
-    role: "Marketing Specialist",
-    status: "On Leave",
-    isCheckedIn: false,
-    lastSeen: "2 days ago",
-    location: "N/A",
-  },
-  {
-    id: "5",
-    name: "David Wilson",
-    email: "david.wilson@company.com",
-    department: "IT",
-    role: "DevOps Engineer",
-    status: "Active",
-    isCheckedIn: true,
-    lastSeen: "5 minutes ago",
-    location: "Office - Floor 3",
-  },
-]
+import { Search, Plus, Edit, Trash2, AlertCircle } from "lucide-react"
+import { employeeApi } from "@/lib/api"
+import { Employee } from "@/lib/types"
 
 export function EmployeeManagement() {
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedDepartment, setSelectedDepartment] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    department: "IT",
+    position: "",
+    phone: "",
+  })
+
+  // Load employees on mount
+  useEffect(() => {
+    loadEmployees()
+  }, [])
+
+  const loadEmployees = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await employeeApi.getAll()
+      if (response.success) {
+        setEmployees(response.data)
+      } else {
+        setError("Failed to load employees")
+      }
+    } catch (err) {
+      console.log("[v0] Error loading employees:", err)
+      setError("Error loading employees")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddEmployee = async () => {
+    if (!formData.name || !formData.email) {
+      setError("Name and email are required")
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      setError(null)
+      const response = await employeeApi.create({
+        name: formData.name,
+        email: formData.email,
+        department: formData.department,
+        position: formData.position,
+        phone: formData.phone,
+      })
+
+      if (response.success) {
+        setEmployees([...employees, response.data])
+        setFormData({ name: "", email: "", department: "IT", position: "", phone: "" })
+        setIsAddDialogOpen(false)
+      } else {
+        setError("Failed to create employee")
+      }
+    } catch (err) {
+      console.log("[v0] Error creating employee:", err)
+      setError("Error creating employee")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleUpdateEmployee = async () => {
+    if (!editingEmployee || !formData.name || !formData.email) {
+      setError("Name and email are required")
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      setError(null)
+      const response = await employeeApi.update(editingEmployee.id, {
+        name: formData.name,
+        email: formData.email,
+        department: formData.department,
+        position: formData.position,
+        phone: formData.phone,
+      })
+
+      if (response.success) {
+        setEmployees(employees.map((e) => (e.id === editingEmployee.id ? response.data : e)))
+        setFormData({ name: "", email: "", department: "IT", position: "", phone: "" })
+        setEditingEmployee(null)
+        setIsEditDialogOpen(false)
+      } else {
+        setError("Failed to update employee")
+      }
+    } catch (err) {
+      console.log("[v0] Error updating employee:", err)
+      setError("Error updating employee")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteEmployee = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this employee?")) return
+
+    try {
+      setError(null)
+      const response = await employeeApi.delete(id)
+      if (response.success) {
+        setEmployees(employees.filter((e) => e.id !== id))
+      } else {
+        setError("Failed to delete employee")
+      }
+    } catch (err) {
+      console.log("[v0] Error deleting employee:", err)
+      setError("Error deleting employee")
+    }
+  }
+
+  const openEditDialog = (emp: Employee) => {
+    setEditingEmployee(emp)
+    setFormData({
+      name: emp.name,
+      email: emp.email,
+      department: emp.department,
+      position: emp.position,
+      phone: emp.phone,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const closeDialog = () => {
+    setIsAddDialogOpen(false)
+    setIsEditDialogOpen(false)
+    setEditingEmployee(null)
+    setFormData({ name: "", email: "", department: "IT", position: "", phone: "" })
+    setError(null)
+  }
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
@@ -90,14 +172,22 @@ export function EmployeeManagement() {
     return matchesSearch && matchesDepartment
   })
 
-  const departments = ["all", "IT", "HR", "Sales", "Marketing"]
+  const departments = ["IT", "HR", "Sales", "Marketing", "Finance", "Operations"]
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-bold tracking-tight">Employee Management</h2>
-        <p className="text-muted-foreground">Manage employee profiles and track their attendance status</p>
+        <p className="text-muted-foreground">Manage employee profiles and view their details</p>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -111,29 +201,187 @@ export function EmployeeManagement() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Currently Present</CardTitle>
+            <CardTitle className="text-sm font-medium">Departments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{employees.filter((e) => e.isCheckedIn).length}</div>
+            <div className="text-2xl font-bold">{new Set(employees.map((e) => e.department)).size}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">On Leave</CardTitle>
+            <CardTitle className="text-sm font-medium">Active</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{employees.filter((e) => e.status === "On Leave").length}</div>
+            <div className="text-2xl font-bold">{employees.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Remote Workers</CardTitle>
+            <CardTitle className="text-sm font-medium">Loading Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{employees.filter((e) => e.location === "Remote").length}</div>
+            <div className="text-2xl font-bold">{loading ? "..." : "Ready"}</div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Add and Edit Employee Dialogs */}
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
+        <DialogTrigger asChild>
+          <div />
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogDescription>Enter the details for the new employee</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                placeholder="Enter full name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Select value={formData.department} onValueChange={(val) => setFormData({ ...formData, department: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                placeholder="Enter job position"
+                value={formData.position}
+                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                placeholder="Enter phone number"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={handleAddEmployee} disabled={isSubmitting}>
+                {isSubmitting ? "Adding..." : "Add Employee"}
+              </Button>
+              <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Employee</DialogTitle>
+            <DialogDescription>Update the employee details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input
+                id="edit-name"
+                placeholder="Enter full name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="Enter email address"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-department">Department</Label>
+              <Select value={formData.department} onValueChange={(val) => setFormData({ ...formData, department: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-position">Position</Label>
+              <Input
+                id="edit-position"
+                placeholder="Enter job position"
+                value={formData.position}
+                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                placeholder="Enter phone number"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={handleUpdateEmployee} disabled={isSubmitting}>
+                {isSubmitting ? "Updating..." : "Update Employee"}
+              </Button>
+              <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters and Actions */}
       <Card>
@@ -143,54 +391,10 @@ export function EmployeeManagement() {
               <CardTitle>Employee Directory</CardTitle>
               <CardDescription>View and manage all employees in your organization</CardDescription>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Employee
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Employee</DialogTitle>
-                  <DialogDescription>Enter the details for the new employee</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" placeholder="Enter full name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="Enter email address" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IT">IT</SelectItem>
-                        <SelectItem value="HR">HR</SelectItem>
-                        <SelectItem value="Sales">Sales</SelectItem>
-                        <SelectItem value="Marketing">Marketing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Input id="role" placeholder="Enter job role" />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button className="flex-1">Add Employee</Button>
-                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Employee
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -198,7 +402,7 @@ export function EmployeeManagement() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search employees..."
+                placeholder="Search by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -210,7 +414,7 @@ export function EmployeeManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                {departments.slice(1).map((dept) => (
+                {departments.map((dept) => (
                   <SelectItem key={dept} value={dept}>
                     {dept}
                   </SelectItem>
@@ -220,85 +424,73 @@ export function EmployeeManagement() {
           </div>
 
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Last Seen</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees.map((employee) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                          <AvatarFallback>
-                            {employee.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{employee.name}</div>
-                          <div className="text-sm text-muted-foreground">{employee.email}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{employee.department}</div>
-                        <div className="text-sm text-muted-foreground">{employee.role}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant={
-                            employee.status === "Active"
-                              ? "default"
-                              : employee.status === "On Leave"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                        >
-                          {employee.status}
-                        </Badge>
-                        {employee.isCheckedIn && (
-                          <Badge variant="outline" className="text-green-600">
-                            <Clock className="h-3 w-3 mr-1" />
-                            In
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm">
-                        <MapPin className="h-3 w-3" />
-                        {employee.location}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{employee.lastSeen}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            {loading ? (
+              <div className="p-8 text-center text-muted-foreground">Loading employees...</div>
+            ) : filteredEmployees.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {employees.length === 0 ? "No employees added yet. Click 'Add Employee' to get started." : "No employees match your search."}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.map((employee) => (
+                    <TableRow key={employee.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.id}`} />
+                            <AvatarFallback>
+                              {employee.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="font-medium">{employee.name}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{employee.department}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{employee.position}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{employee.email}</TableCell>
+                      <TableCell className="text-sm">{employee.phone}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(employee)}
+                            title="Edit employee"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteEmployee(employee.id)}
+                            title="Delete employee"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </CardContent>
       </Card>
