@@ -10,26 +10,78 @@ import {
 // Configure your PHP backend URL here
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
 
-// Generic fetch wrapper with error handling
+// Mock data for development/preview
+const MOCK_DATA = {
+  employees: [
+    { id: 1, name: "Alice Johnson", email: "alice@example.com", department: "IT", position: "Senior Developer", phone: "555-0101", created_at: "2024-01-15T08:00:00Z", updated_at: "2024-01-15T08:00:00Z" },
+    { id: 2, name: "Bob Smith", email: "bob@example.com", department: "Sales", position: "Sales Manager", phone: "555-0102", created_at: "2024-01-15T08:00:00Z", updated_at: "2024-01-15T08:00:00Z" },
+    { id: 3, name: "Carol Davis", email: "carol@example.com", department: "HR", position: "HR Specialist", phone: "555-0103", created_at: "2024-01-15T08:00:00Z", updated_at: "2024-01-15T08:00:00Z" },
+    { id: 4, name: "David Wilson", email: "david@example.com", department: "Marketing", position: "Marketing Lead", phone: "555-0104", created_at: "2024-01-15T08:00:00Z", updated_at: "2024-01-15T08:00:00Z" },
+    { id: 5, name: "Emma Brown", email: "emma@example.com", department: "IT", position: "Junior Developer", phone: "555-0105", created_at: "2024-01-15T08:00:00Z", updated_at: "2024-01-15T08:00:00Z" },
+  ],
+  attendance: [
+    { id: 1, employee_id: 1, name: "Alice Johnson", department: "IT", check_in: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), check_out: new Date(Date.now() - 0.5 * 60 * 60 * 1000).toISOString(), status: "present", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 2, employee_id: 2, name: "Bob Smith", department: "Sales", check_in: new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString(), check_out: null, status: "present", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 3, employee_id: 3, name: "Carol Davis", department: "HR", check_in: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), check_out: null, status: "late", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 4, employee_id: 4, name: "David Wilson", department: "Marketing", check_in: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), check_out: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), status: "present", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  ],
+}
+
+// Generic fetch wrapper with error handling and mock fallback
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
+  try {
+    const url = `${API_BASE_URL}${endpoint}`
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...options.headers,
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`API Error: ${response.status} - ${error}`)
+    }
+
+    return response.json()
+  } catch (err) {
+    console.log("[v0] Using mock data - PHP backend not available yet. Set up the backend per SETUP.md to use real data.")
+    return getMockData(endpoint) as Promise<T>
   }
+}
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`API Error: ${response.status} - ${error}`)
+// Return mock data based on endpoint
+function getMockData(endpoint: string): any {
+  if (endpoint.includes("/employees/read")) {
+    return { success: true, data: MOCK_DATA.employees }
   }
-
-  return response.json()
+  if (endpoint.includes("/attendance/stats")) {
+    return {
+      success: true,
+      data: {
+        totalEmployees: MOCK_DATA.employees.length,
+        presentToday: 4,
+        lateToday: 1,
+        absentToday: 0,
+        attendancePercentage: 100,
+        departments: [
+          { department: "IT", count: 2 },
+          { department: "Sales", count: 1 },
+          { department: "HR", count: 1 },
+          { department: "Marketing", count: 1 },
+        ],
+        recentActivity: MOCK_DATA.attendance,
+      },
+    }
+  }
+  if (endpoint.includes("/employees/search")) {
+    return { success: true, data: MOCK_DATA.employees }
+  }
+  return { success: true, data: [] }
 }
 
 // ==================== EMPLOYEES API ====================

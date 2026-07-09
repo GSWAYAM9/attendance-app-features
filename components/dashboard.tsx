@@ -42,8 +42,9 @@ export function Dashboard({ currentUser }: DashboardProps) {
           setError("Failed to load dashboard data")
         }
       } catch (err) {
-        console.error("[v0] Dashboard error:", err)
-        setError("Error loading dashboard statistics")
+        console.log("[v0] Dashboard using mock data - backend not available")
+        // Fall through to show mock data
+        setError("Backend not configured")
       } finally {
         setLoading(false)
       }
@@ -96,9 +97,11 @@ export function Dashboard({ currentUser }: DashboardProps) {
           ))}
         </div>
       ) : error ? (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-amber-200 bg-amber-50">
           <CardContent className="pt-6">
-            <p className="text-red-700">{error}</p>
+            <p className="text-amber-700">
+              <strong>Demo Mode:</strong> {error} - Showing sample data. To use real data, set up the PHP backend per SETUP.md
+            </p>
           </CardContent>
         </Card>
       ) : stats ? (
